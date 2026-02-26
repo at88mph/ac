@@ -68,38 +68,30 @@
 
 package org.opencadc.posix.mapper.web.group;
 
-import java.io.StringWriter;
-import java.io.Writer;
 import java.net.URI;
-import java.util.List;
 import org.junit.Assert;
 import org.junit.Test;
 import org.opencadc.gms.GroupURI;
 import org.opencadc.posix.mapper.Group;
 
-public class AsciiGroupWriterTest {
+public class TSVGroupFormatterTest {
     @Test
-    public void writeNoGID() throws Exception {
-        final Writer writer = new StringWriter();
-        final AsciiGroupWriter testSubject = new AsciiGroupWriter(writer);
-
+    public void writeNoUID() {
+        final TSVGroupFormatter testSubject = new TSVGroupFormatter();
         final Group testGroup = new Group(new GroupURI(URI.create("ivo://test.org/groups?TESTGROUP1")));
-        testSubject.write(List.of(testGroup).iterator());
 
-        Assert.assertEquals("Wrong output", "TESTGROUP1:x:(Not yet persisted):\n",
-                writer.toString());
+        final String expectedJSON = "ivo://test.org/groups?TESTGROUP1\t(Not yet persisted)";
+        Assert.assertEquals("Wrong output", expectedJSON, testSubject.format(testGroup));
     }
 
     @Test
-    public void writeFull() throws Exception {
-        final Writer writer = new StringWriter();
-        final AsciiGroupWriter testSubject = new AsciiGroupWriter(writer);
+    public void writeFull() {
+        final TSVGroupFormatter testSubject = new TSVGroupFormatter();
 
         final Group testGroup = new Group(new GroupURI(URI.create("ivo://test.org/groups?TESTGROUP4")));
-        testGroup.setGid(441);
-        testSubject.write(List.of(testGroup).iterator());
+        testGroup.setGid(7765);
 
-        Assert.assertEquals("Wrong output", "TESTGROUP4:x:441:\n",
-                writer.toString());
+        final String expectedJSON = "ivo://test.org/groups?TESTGROUP4\t7765";
+        Assert.assertEquals("Wrong output", expectedJSON, testSubject.format(testGroup));
     }
 }

@@ -66,38 +66,32 @@
  ************************************************************************
  */
 
-package org.opencadc.posix.mapper.web.user;
+package org.opencadc.posix.mapper.web.group;
 
-import java.io.StringWriter;
-import java.io.Writer;
-import java.util.List;
+import java.net.URI;
 import org.junit.Assert;
 import org.junit.Test;
-import org.opencadc.posix.mapper.User;
+import org.opencadc.gms.GroupURI;
+import org.opencadc.posix.mapper.Group;
 
-public class AsciiUserWriterTest {
+public class AsciiGroupFormatterTest {
     @Test
-    public void writeNoUID() throws Exception {
-        final Writer writer = new StringWriter();
-        final AsciiUserWriter testSubject = new AsciiUserWriter(writer);
+    public void writeNoGID() {
+        final AsciiGroupFormatter testSubject = new AsciiGroupFormatter();
 
-        final User testUser = new User("TESTUSER1");
-        testSubject.write(List.of(testUser).iterator());
+        final Group testGroup = new Group(new GroupURI(URI.create("ivo://test.org/groups?TESTGROUP1")));
 
-        Assert.assertEquals("Wrong output", "TESTUSER1:x:0:0:::\n",
-                writer.toString());
+        Assert.assertEquals("Wrong output", "TESTGROUP1:x:(Not yet persisted):",
+                testSubject.format(testGroup));
     }
 
     @Test
-    public void writeFull() throws Exception {
-        final Writer writer = new StringWriter();
-        final AsciiUserWriter testSubject = new AsciiUserWriter(writer);
+    public void writeFull() {
+        final AsciiGroupFormatter testSubject = new AsciiGroupFormatter();
 
-        final User testUser = new User("TESTUSER4");
-        testUser.setUid(899);
-        testSubject.write(List.of(testUser).iterator());
+        final Group testGroup = new Group(new GroupURI(URI.create("ivo://test.org/groups?TESTGROUP4")));
+        testGroup.setGid(441);
 
-        Assert.assertEquals("Wrong output", "TESTUSER4:x:899:899:::\n",
-                writer.toString());
+        Assert.assertEquals("Wrong output", "TESTGROUP4:x:441:", testSubject.format(testGroup));
     }
 }

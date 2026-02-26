@@ -69,9 +69,31 @@
 package org.opencadc.posix.mapper.web.group;
 
 import java.io.IOException;
+import java.io.Writer;
 import java.util.Iterator;
 import org.opencadc.posix.mapper.Group;
+import org.opencadc.posix.mapper.web.user.UserFormatter;
 
-public interface GroupWriter {
-    void write(final Iterator<Group> groupIterator) throws IOException;
+public class GroupWriter {
+    private final Writer writer;
+    private final GroupFormatter formatter;
+
+    public GroupWriter(Writer writer, GroupFormatter formatter) {
+        this.writer = writer;
+        this.formatter = formatter;
+    }
+
+    public void write(final Iterator<Group> groupIterator) throws IOException {
+        while (groupIterator.hasNext()) {
+            final Group group = groupIterator.next();
+            write(group);
+        }
+
+        writer.flush();
+    }
+
+    public void write(final Group group) throws IOException {
+        this.writer.write(formatter.format(group));
+        this.writer.write("\n");
+    }
 }

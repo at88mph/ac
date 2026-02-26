@@ -1,60 +1,63 @@
 package org.opencadc.posix.mapper;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.NamedQueries;
-import jakarta.persistence.NamedQuery;
-import jakarta.persistence.SequenceGenerator;
-import jakarta.persistence.Table;
+import java.util.Objects;
 
-
-@NamedQueries({
-        @NamedQuery(name = "findUserByUsername", query = "SELECT u FROM Users u WHERE u.username = :username"),
-})
-@Entity(name = "Users")
-@Table(name = "Users")
+/**
+ * Represents a mapping between a user and a POSIX UID.  The issuer and subject fields are used to uniquely identify the user, and the username field is used to generate the POSIX entry.  The uid field is used to store the POSIX UID.
+ */
 public class User {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY, generator = "users_uid_seq1")
-    @SequenceGenerator(name = "users_uid_seq1", sequenceName = "users_uid_seq1", allocationSize = 1)
+    private final String issuer;
+    private final String subject;
+    private final String username;
     private int uid;
 
-    @Column(unique = true)
-    private String username;
-
-
-    public User() {
-    }
-
-    public User(String username) {
+    public User(final String issuer, final String subject, final String username) {
+        this.issuer = issuer;
+        this.subject = subject;
         this.username = username;
     }
 
-    public int getUid() {
-        return uid;
+    public void setUID(int uid) {
+        this.uid = uid;
     }
 
-    public void setUid(int uid) {
-        this.uid = uid;
+    public String getIssuer() {
+        return issuer;
+    }
+
+    public String getSubject() {
+        return subject;
     }
 
     public String getUsername() {
         return username;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public int getUID() {
+        return uid;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        User user = (User) o;
+        return Objects.equals(issuer, user.issuer) && Objects.equals(subject, user.subject);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(issuer, subject);
     }
 
     @Override
     public String toString() {
         return "User{" +
-                "uid=" + uid +
-                ", username='" + username + '\'' +
+                "issuer='" + issuer + '\'' +
+                ", subject='" + subject + '\'' +
+                ", uid=" + uid +
                 '}';
     }
 }

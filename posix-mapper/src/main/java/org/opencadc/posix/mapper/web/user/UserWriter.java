@@ -69,9 +69,29 @@
 package org.opencadc.posix.mapper.web.user;
 
 import java.io.IOException;
+import java.io.Writer;
 import java.util.Iterator;
 import org.opencadc.posix.mapper.User;
 
-public interface UserWriter {
-    void write(final Iterator<User> userIterator) throws IOException;
+public class UserWriter {
+    private final Writer writer;
+    private final UserFormatter formatter;
+
+    public UserWriter(Writer writer, UserFormatter formatter) {
+        this.writer = writer;
+        this.formatter = formatter;
+    }
+
+    public void write(final Iterator<User> userIterator) throws IOException {
+        while (userIterator.hasNext()) {
+            final User user = userIterator.next();
+            write(user);
+        }
+        this.writer.flush();
+    }
+
+    public void write(final User user) throws IOException {
+        this.writer.write(formatter.format(user));
+        this.writer.write("\n");
+    }
 }

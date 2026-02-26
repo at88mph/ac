@@ -70,33 +70,37 @@ package org.opencadc.posix.mapper.web.user;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
+
+import ca.nrc.cadc.auth.AuthenticationUtil;
+import ca.nrc.cadc.auth.HttpPrincipal;
+import ca.nrc.cadc.auth.OpenIdPrincipal;
 import org.opencadc.posix.mapper.PosixClient;
+import org.opencadc.posix.mapper.User;
 import org.opencadc.posix.mapper.web.PosixMapperAction;
+
+import javax.security.auth.Subject;
 
 public class GetAction extends PosixMapperAction {
 
     @Override
     public void doAction() throws Exception {
         final UserWriter userWriter = getUserWriter();
-        PosixClient posixClient = null;
-        try {
-            posixClient = getPosixClient();
-            posixClient.writeUsers(userWriter, usernameParameters().toArray(new String[0]),
-                    uidParameters().toArray(new Integer[0]));
-        } finally {
-            if (posixClient != null) {
-                posixClient.close();
-            }
-        }
+        final PosixClient posixClient = getPosixClient();
+        final Subject currentUser = AuthenticationUtil.getCurrentSubject();
+
+        final OpenIdPrincipal openIdPrincipal = currentUser.getPrincipals(OpenIdPrincipal.class).stream().findFirst()
+                .orElseThrow(() -> new IllegalStateException("No OpenIdPrincipal found in subject"));
+        final String issuer = openIdPrincipal.getIssuer().toString();
+        final String sub = openIdPrincipal.getName();
+
+        final HttpPrincipal httpPrincipal = currentUser.getPrincipals(HttpPrincipal.class).stream().findFirst()
+                .orElseThrow(() -> new IllegalStateException("No HttpPrincipal found in subject"));
+
+        posixClient.ensureUser(new User(issuer, sub, httpPrincipal.getName()));
+        posixClient.writeUsers(userWriter, uidParameters().toArray(new Integer[0]));
 
         syncOutput.getOutputStream().flush();
-    }
-
-    List<String> usernameParameters() {
-        final List<String> usernameStringParameters = syncInput.getParameters("user");
-        return Objects.requireNonNullElse(usernameStringParameters, Collections.emptyList());
     }
 
     private List<Integer> uidParameters() {

@@ -68,34 +68,63 @@
 
 package org.opencadc.posix.mapper.web.user;
 
-import java.io.IOException;
+import java.io.StringWriter;
 import java.io.Writer;
-import java.util.Iterator;
-import org.opencadc.posix.mapper.PostgresPosixUtil;
+import java.util.List;
+import org.junit.Assert;
+import org.junit.Test;
 import org.opencadc.posix.mapper.User;
 
-public class AsciiUserWriter implements UserWriter {
+public class UserWriterTest {
+    private UserWriter testSubject;
 
-    private final Writer writer;
+    @Test
+    public void writeNoUIDAscii() throws Exception {
+        final Writer writer = new StringWriter();
+        final UserWriter testSubject = new UserWriter(writer, new AsciiUserFormatter());
 
-    public AsciiUserWriter(final Writer writer) {
-        this.writer = writer;
+        final User testUser = new User("https://example.identity.org", "0000-000-0001", "TESTUSER1");
+        testSubject.write(List.of(testUser).iterator());
+
+        Assert.assertEquals("Wrong output", "TESTUSER1:x:0:0:::\n",
+                writer.toString());
     }
 
-    @Override
-    public void write(Iterator<User> userIterator) throws IOException {
-        try {
-            while (userIterator.hasNext()) {
-                final User user = userIterator.next();
-                writer.write(new PostgresPosixUtil()
-                        .user(user)
-                        .userName(user.getUsername())
-                        .posixEntry());
-                writer.write("\n");
-                writer.flush();
-            }
-        } catch (Exception exception) {
-            throw new IOException(exception.getMessage(), exception);
-        }
+    @Test
+    public void writeFullAscii() throws Exception {
+        final Writer writer = new StringWriter();
+        final UserWriter testSubject = new UserWriter(writer, new AsciiUserFormatter());
+
+        final User testUser = new User("https://example.identity.org", "0000-000-0002", "TESTUSER2");
+        testUser.setUID(899);
+        testSubject.write(List.of(testUser).iterator());
+
+        Assert.assertEquals("Wrong output", "TESTUSER2:x:899:899:::\n",
+                writer.toString());
+    }
+
+    @Test
+    public void writeNoUIDTSV() throws Exception {
+        final Writer writer = new StringWriter();
+        final UserWriter testSubject = new UserWriter(writer, new TSVUserFormatter());
+
+        final User testUser = new User("https://example.identity.org", "0000-000-0001", "TESTUSER1");
+        testSubject.write(List.of(testUser).iterator());
+
+        final String expectedTSV = "TESTUSER1\t0\t0\n";
+        Assert.assertEquals("Wrong output", expectedTSV, writer.toString());
+    }
+
+    @Test
+    public void writeFullTSV() throws Exception {
+        final Writer writer = new StringWriter();
+        final UserWriter testSubject = new UserWriter(writer, new TSVUserFormatter());
+
+        final User testUser = new User("https://example.identity.org", "0000-000-0002", "TESTUSER2");
+        testUser.setUID(899);
+        testSubject.write(List.of(testUser).iterator());
+
+        Assert.assertEquals("Wrong output", "TESTUSER2\t899\t899\n",
+                writer.toString());
     }
 }

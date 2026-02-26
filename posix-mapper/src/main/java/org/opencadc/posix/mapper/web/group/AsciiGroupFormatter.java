@@ -66,38 +66,20 @@
  ************************************************************************
  */
 
-package org.opencadc.posix.mapper.web.user;
+package org.opencadc.posix.mapper.web.group;
 
-import java.io.StringWriter;
-import java.io.Writer;
-import java.util.List;
-import org.junit.Assert;
-import org.junit.Test;
-import org.opencadc.posix.mapper.User;
+import org.opencadc.posix.mapper.Group;
 
-public class TSVUserWriterTest {
-    @Test
-    public void writeNoUID() throws Exception {
-        final Writer writer = new StringWriter();
-        final TSVUserWriter testSubject = new TSVUserWriter(writer);
+/**
+ * Write out a plain listing of Group ID to Group URIs.
+ */
+public class AsciiGroupFormatter implements GroupFormatter {
+    private static final String POSIX_TEMPLATE = "%s:x:%s:";
+    @Override
+    public String format(Group group) {
+        final String gidOutput = group.getGID() == null ? GroupFormatter.UNSET_GID : Integer.toString(group.getGID());
 
-        final User testUser = new User("TESTUSER1");
-        testSubject.write(List.of(testUser).iterator());
-
-        final String expectedTSV = "TESTUSER1\t0\t0\n";
-        Assert.assertEquals("Wrong output", expectedTSV, writer.toString());
-    }
-
-    @Test
-    public void writeFull() throws Exception {
-        final Writer writer = new StringWriter();
-        final TSVUserWriter testSubject = new TSVUserWriter(writer);
-
-        final User testUser = new User("TESTUSER4");
-        testUser.setUid(899);
-        testSubject.write(List.of(testUser).iterator());
-
-        Assert.assertEquals("Wrong output", "TESTUSER4\t899\t899\n",
-                writer.toString());
+        // Group name is in the query parameter
+        return String.format(AsciiGroupFormatter.POSIX_TEMPLATE, group.getGroupURI().getURI().getQuery(), gidOutput);
     }
 }

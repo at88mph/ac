@@ -97,7 +97,7 @@ public class InitializeMappingDatabase extends InitDatabase {
         super(dataSource, database, schema, InitializeMappingDatabase.MODEL_NAME,
                 InitializeMappingDatabase.MODEL_VERSION, InitializeMappingDatabase.PREV_MODEL_VERSION);
 
-        this.createSQL.addAll(Arrays.stream(InitializeMappingDatabase.CREATE_SQL).collect(Collectors.toList()));
+        this.createSQL.addAll(Arrays.stream(InitializeMappingDatabase.CREATE_SQL).toList());
     }
 
     @Override

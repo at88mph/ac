@@ -66,70 +66,15 @@
  ************************************************************************
  */
 
-package org.opencadc.posix.mapper.db;
+package org.opencadc.posix.mapper.web.group;
 
-import java.io.Serializable;
-import java.net.URI;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Types;
-import org.hibernate.engine.spi.SharedSessionContractImplementor;
-import org.hibernate.usertype.UserType;
-import org.opencadc.gms.GroupURI;
+import org.opencadc.posix.mapper.Group;
 
-/**
- * Hibernate mapping type to marshal and unmarshal a GroupURI.
- */
-public class GroupURIType implements UserType<GroupURI> {
+public class TSVGroupFormatter implements GroupFormatter {
+    private static final String STRING_TEMPLATE = "%s\t%s";
 
     @Override
-    public int getSqlType() {
-        return Types.VARCHAR;
-    }
-
-    @Override
-    public Class<GroupURI> returnedClass() {
-        return GroupURI.class;
-    }
-
-    @Override
-    public boolean equals(GroupURI x, GroupURI y) {
-        return x == y;
-    }
-
-    @Override
-    public int hashCode(GroupURI x) {
-        return x.hashCode();
-    }
-
-    @Override
-    public GroupURI nullSafeGet(ResultSet rs, int position, SharedSessionContractImplementor session, Object owner) throws SQLException {
-        return new GroupURI(URI.create(rs.getString(position)));
-    }
-
-    @Override
-    public void nullSafeSet(PreparedStatement st, GroupURI value, int index, SharedSessionContractImplementor session) throws SQLException {
-        st.setString(index, value.getURI().toString());
-    }
-
-    @Override
-    public GroupURI deepCopy(GroupURI value) {
-        return new GroupURI(value.getURI());
-    }
-
-    @Override
-    public boolean isMutable() {
-        return false;
-    }
-
-    @Override
-    public Serializable disassemble(GroupURI value) {
-        return null;
-    }
-
-    @Override
-    public GroupURI assemble(Serializable cached, Object owner) {
-        return null;
+    public String format(Group group) {
+        return String.format(TSVGroupFormatter.STRING_TEMPLATE, group.getGroupURI(), group.getGID() == null ? GroupFormatter.UNSET_GID : group.getGID());
     }
 }

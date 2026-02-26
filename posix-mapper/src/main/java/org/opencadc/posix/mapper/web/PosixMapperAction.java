@@ -73,27 +73,21 @@ import ca.nrc.cadc.auth.AuthenticationUtil;
 import ca.nrc.cadc.auth.NotAuthenticatedException;
 import ca.nrc.cadc.rest.InlineContentHandler;
 import ca.nrc.cadc.rest.RestAction;
-import ca.nrc.cadc.util.MultiValuedProperties;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import javax.security.auth.Subject;
-import org.opencadc.posix.mapper.Group;
 import org.opencadc.posix.mapper.PosixClient;
-import org.opencadc.posix.mapper.Postgres;
-import org.opencadc.posix.mapper.PostgresPosixClient;
-import org.opencadc.posix.mapper.User;
-import org.opencadc.posix.mapper.web.group.AsciiGroupWriter;
+import org.opencadc.posix.mapper.web.group.AsciiGroupFormatter;
 import org.opencadc.posix.mapper.web.group.GroupWriter;
-import org.opencadc.posix.mapper.web.group.TSVGroupWriter;
-import org.opencadc.posix.mapper.web.user.AsciiUserWriter;
-import org.opencadc.posix.mapper.web.user.TSVUserWriter;
+import org.opencadc.posix.mapper.web.group.TSVGroupFormatter;
+import org.opencadc.posix.mapper.web.user.AsciiUserFormatter;
+import org.opencadc.posix.mapper.web.user.TSVUserFormatter;
 import org.opencadc.posix.mapper.web.user.UserWriter;
 
 public abstract class PosixMapperAction extends RestAction {
 
-    protected static final MultiValuedProperties POSIX_CONFIGURATION = PosixInitAction.getConfig();
     protected static final String TSV_CONTENT_TYPE = "text/tab-separated-values";
 
     protected PosixMapperAction() {
@@ -112,10 +106,7 @@ public abstract class PosixMapperAction extends RestAction {
      * @return PosixClient instance, never null.
      */
     protected PosixClient getPosixClient() {
-        return new PostgresPosixClient(Postgres.instance(
-                        PosixMapperAction.POSIX_CONFIGURATION.getFirstPropertyValue(PosixInitAction.SCHEMA_KEY))
-                .entityClass(User.class, Group.class)
-                .build());
+        return new PosixClient();
     }
 
     private void checkAuthorization() {
@@ -128,21 +119,15 @@ public abstract class PosixMapperAction extends RestAction {
     protected GroupWriter getGroupWriter() throws IOException {
         final String writeContentType = prepareContent();
         final Writer writer = new BufferedWriter(new OutputStreamWriter(this.syncOutput.getOutputStream()));
-        if (PosixMapperAction.TSV_CONTENT_TYPE.equals(writeContentType)) {
-            return new TSVGroupWriter(writer);
-        } else {
-            return new AsciiGroupWriter(writer);
-        }
+        return new GroupWriter(writer, PosixMapperAction.TSV_CONTENT_TYPE.equals(writeContentType)
+                ? new TSVGroupFormatter() : new AsciiGroupFormatter());
     }
 
     protected UserWriter getUserWriter() throws IOException {
         final String writeContentType = prepareContent();
         final Writer writer = new BufferedWriter(new OutputStreamWriter(this.syncOutput.getOutputStream()));
-        if (PosixMapperAction.TSV_CONTENT_TYPE.equals(writeContentType)) {
-            return new TSVUserWriter(writer);
-        } else {
-            return new AsciiUserWriter(writer);
-        }
+        return new UserWriter(writer, PosixMapperAction.TSV_CONTENT_TYPE.equals(writeContentType)
+                ? new TSVUserFormatter() : new AsciiUserFormatter());
     }
 
     protected String prepareContent() {
