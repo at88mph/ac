@@ -76,6 +76,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
+
+import org.opencadc.posix.mapper.Configuration;
 import org.opencadc.posix.mapper.web.PosixInitAction;
 
 
@@ -102,12 +104,12 @@ public class InitializeMappingDatabase extends InitDatabase {
 
     @Override
     public List<String> parseDDL(String fileName, String schema, String tag) throws IOException {
-        final MultiValuedProperties configuration = PosixInitAction.getConfig();
+        final Configuration configuration = Configuration.fromEnv();
         return super.parseDDL(fileName, schema, tag).stream()
                 .map(line -> line.replaceAll("<gid_start>",
-                                configuration.getFirstPropertyValue(PosixInitAction.GID_START_KEY))
+                                Integer.toString(configuration.getStartGID()))
                         .replaceAll("<uid_start>",
-                                configuration.getFirstPropertyValue(PosixInitAction.UID_START_KEY)))
+                                Integer.toString(configuration.getStartUID())))
                 .collect(Collectors.toList());
     }
 

@@ -70,11 +70,16 @@ package org.opencadc.posix.mapper;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
+import org.apache.log4j.Logger;
 import org.opencadc.gms.GroupURI;
 import org.opencadc.posix.mapper.db.PosixMapperDAO;
 import org.opencadc.posix.mapper.web.group.GroupWriter;
@@ -83,49 +88,66 @@ import org.springframework.transaction.annotation.Transactional;
 
 
 public class PosixClient {
+    private static final Logger LOGGER = Logger.getLogger(PosixClient.class.getName());
     private static final String USER_CACHE_KEY_TEMPLATE = "%s|%s";
+    private final LoadingCache<String, User> userLoadingCache;
     private final ConcurrentHashMap<String, User> userCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<URI, Group> groupCache = new ConcurrentHashMap<>();
     private final PosixMapperDAO posixMapperDAO = new PosixMapperDAO();
 
     public PosixClient() {
-        posixMapperDAO.cacheUsers(this.userCache);
-        posixMapperDAO.cacheGroups(this.groupCache);
+        userLoadingCache = Caffeine.newBuilder().maximumSize(10_000)
+                .recordStats()
+                .build(key -> {
+                    final String[] parts = key.split("\\|", 2);
+                    if (parts.length != 2) {
+                        throw new IllegalArgumentException("Invalid cache key format: " + key);
+                    }
+                    final String issuer = parts[0];
+                    final String subject = parts[1];
+                    return posixMapperDAO.getUser(issuer, subject);
+                });
     }
 
-    static String toKey(String issuer, String subject) {
-        return String.format(PosixClient.USER_CACHE_KEY_TEMPLATE, issuer, subject);
+    void cache() {
+        final long startTime = System.currentTimeMillis();
+        final CompletableFuture<Void> userCacheFuture =
+                CompletableFuture.runAsync(() -> posixMapperDAO.allUsers().forEach(u -> userCache.put(PosixClient.toKey(u), u)));
+        final CompletableFuture<Void> groupCacheFuture =
+                CompletableFuture.runAsync(() -> posixMapperDAO.allGroups().forEach(g -> groupCache.put(g.getGroupURI().getURI(), g)));
+        CompletableFuture.allOf(userCacheFuture, groupCacheFuture).join();
+        final long endTime = System.currentTimeMillis();
+        LOGGER.info(String.format("Cache initialized in %d ms with %d users and %d groups", endTime - startTime, userCache.size(), groupCache.size()));
     }
 
-    public User getUser(String issuer, String subject) {
-        return this.userCache.get(PosixClient.toKey(issuer, subject));
+    static String toKey(final User user) {
+        return String.format(PosixClient.USER_CACHE_KEY_TEMPLATE, user.getIssuer(), user.getSubject());
+    }
+
+    public User getUser(final User user) {
+        return this.userCache.get(PosixClient.toKey(user));
     }
 
     @Transactional
-    public User ensureUser(User user) {
-        final User cachedUser = getUser(user.getIssuer(), user.getSubject());
-        if (cachedUser != null) {
-            return cachedUser;
-        } else {
+    public void ensureUser(User user) {
+        final User cachedUser = getUser(user);
+        if (cachedUser == null) {
             final User existingUser = this.posixMapperDAO.getUser(user.getIssuer(), user.getSubject());
             if (existingUser != null) {
-                this.userCache.putIfAbsent(PosixClient.toKey(existingUser.getIssuer(), existingUser.getSubject()),
+                this.userCache.putIfAbsent(PosixClient.toKey(existingUser),
                         existingUser);
-                return existingUser;
             } else {
                 final User newUser = saveUser(user);
                 final Group newGroup = new Group(new GroupURI(URI.create("ivo://cadc.nrc.ca/groups?default")));
                 newGroup.setGid(newUser.getUID());
                 saveGroup(newGroup);
-
-                return newUser;
             }
         }
     }
 
     public User saveUser(User user) {
         final User newUser = this.posixMapperDAO.createUserMapping(user);
-        this.userCache.putIfAbsent(PosixClient.toKey(newUser.getIssuer(), newUser.getSubject()), newUser);
+        this.userCache.putIfAbsent(PosixClient.toKey(newUser), newUser);
 
         return newUser;
     }

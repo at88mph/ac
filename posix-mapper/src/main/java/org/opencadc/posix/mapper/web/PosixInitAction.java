@@ -78,31 +78,15 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
+
+import org.opencadc.posix.mapper.Configuration;
 import org.opencadc.posix.mapper.db.InitializeMappingDatabase;
 
 public class PosixInitAction extends InitAction {
 
     private static final Logger LOGGER = Logger.getLogger(PosixInitAction.class.getName());
 
-    // config keys
-    public static final String JNDI_DATASOURCE = "jdbc/posix-mapper"; // context.xml
-
-    // config keys
-    private static final String POSIX_KEY = "org.opencadc.posix.mapper";
-    static final String SCHEMA_KEY = PosixInitAction.POSIX_KEY + ".schema";
-
-    public static final String UID_START_KEY = PosixInitAction.POSIX_KEY + ".uid.start";
-    public static final String GID_START_KEY = PosixInitAction.POSIX_KEY + ".gid.start";
-
-    static final String RESOURCE_ID_KEY = PosixInitAction.POSIX_KEY + ".resourceID";
-
-    static final String[] CHECK_CONFIG_KEYS = new String[]{
-            PosixInitAction.SCHEMA_KEY, PosixInitAction.RESOURCE_ID_KEY,
-            PosixInitAction.UID_START_KEY, PosixInitAction.GID_START_KEY
-    };
-
-    MultiValuedProperties props;
-    private final Map<String, Object> daoConfig = new HashMap<>();
+    Configuration configuration;
 
     @Override
     public void doInit() {
@@ -110,64 +94,22 @@ public class PosixInitAction extends InitAction {
         initDatabase();
     }
 
-    /**
-     * Read config file and verify that all required entries are present.
-     *
-     * @return MultiValuedProperties containing the application config
-     * @throws IllegalStateException if required config items are missing
-     */
-    public static MultiValuedProperties getConfig() {
-        final PropertiesReader propertiesReader = new PropertiesReader("posix-mapper.properties");
-        final MultiValuedProperties multiValuedProperties = propertiesReader.getAllProperties();
-
-        final StringBuilder errorReportMessage = new StringBuilder();
-        errorReportMessage.append("incomplete config: ");
-
-        Arrays.stream(PosixInitAction.CHECK_CONFIG_KEYS)
-                .forEach(key -> PosixInitAction.checkConfigProperty(key, multiValuedProperties, errorReportMessage));
-
-        if (errorReportMessage.indexOf("MISSING") > 0) {
-            throw new IllegalStateException(errorReportMessage.toString());
-        }
-
-        return multiValuedProperties;
-    }
-
-    static void checkConfigProperty(final String key, final MultiValuedProperties multiValuedProperties,
-                                    final StringBuilder errorReportMessage) {
-        final String configPropertyValue = multiValuedProperties.getFirstPropertyValue(key);
-        errorReportMessage.append("\n\t").append(key).append(": ");
-        if (configPropertyValue == null) {
-            errorReportMessage.append("MISSING");
-        } else {
-            errorReportMessage.append("OK");
-        }
-    }
-
     private void initConfig() {
         LOGGER.info("initConfig: START");
-        this.props = PosixInitAction.getConfig();
-        this.daoConfig.putAll(getDaoConfig(props));
+        this.configuration = Configuration.fromEnv();
         LOGGER.info("initConfig: OK");
-    }
-
-    static Map<String, Object> getDaoConfig(MultiValuedProperties props) {
-        final Map<String, Object> ret = new TreeMap<>();
-        ret.put("jndiDataSourceName", PosixInitAction.JNDI_DATASOURCE);
-        ret.put("schema", props.getFirstPropertyValue(PosixInitAction.SCHEMA_KEY));
-
-        return ret;
     }
 
     private void initDatabase() {
         LOGGER.info("initDatabase: START");
         try {
-            DataSource ds = DBUtil.findJNDIDataSource(PosixInitAction.JNDI_DATASOURCE);
-            String database = (String) daoConfig.get("database");
-            String schema = (String) daoConfig.get("schema");
-            final InitializeMappingDatabase init = new InitializeMappingDatabase(ds, database, schema);
+            final Configuration.DatabaseConfiguration databaseConfiguration = this.configuration.getDatabaseConfiguration();
+            String jndiDatasourceName = databaseConfiguration.getJNDIDatasourceName();
+            DataSource ds = DBUtil.findJNDIDataSource(jndiDatasourceName);
+            String schema = databaseConfiguration.getSchema();
+            final InitializeMappingDatabase init = new InitializeMappingDatabase(ds, null, schema);
             init.doInit();
-            LOGGER.info("initDatabase: " + PosixInitAction.JNDI_DATASOURCE + " " + schema + " OK");
+            LOGGER.info("initDatabase: " + jndiDatasourceName + " " + schema + " OK");
         } catch (Exception ex) {
             throw new IllegalStateException("check/init database failed", ex);
         }

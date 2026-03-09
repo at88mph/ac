@@ -1,9 +1,9 @@
 package org.opencadc.posix.mapper.db;
 
 import org.opencadc.gms.GroupURI;
+import org.opencadc.posix.mapper.Configuration;
 import org.opencadc.posix.mapper.Group;
 import org.opencadc.posix.mapper.User;
-import org.opencadc.posix.mapper.web.PosixInitAction;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.lookup.DataSourceLookupFailureException;
 import org.springframework.jdbc.datasource.lookup.JndiDataSourceLookup;
@@ -14,22 +14,22 @@ import javax.sql.DataSource;
 import java.net.URI;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
+import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Simple DAO for accessing the Users and Groups tables.  This class is designed to be used by the PosixMapperCache to
  * load user and group information into memory.
  */
 public class PosixMapperDAO {
-    // Dummy scheme and authority for default groups.
-    private static final String JNDI_NAME = "java:comp/env/" + PosixInitAction.JNDI_DATASOURCE;
+    private static final String JNDI_NAME = "java:comp/env/%s";
     private static final String INSERT_SQL_TEMPLATE = "INSERT INTO %s (%s) VALUES (?) ON CONFLICT (%s) DO NOTHING RETURNING %s";
     private static final String INSERT_USER_SQL = String.format(PosixMapperDAO.INSERT_SQL_TEMPLATE, "Users", "username", "username", "uid");
     private static final String INSERT_GROUP_SQL = String.format(PosixMapperDAO.INSERT_SQL_TEMPLATE, "Groups", "groupURI", "groupURI", "gid");
 
     // The JdbcTemplate is thread-safe and can be shared across multiple threads, so we can safely use a single instance for the DAO.
     private final JdbcTemplate jdbcTemplate;
+    private final Configuration.DatabaseConfiguration databaseConfiguration = Configuration.fromEnv().getDatabaseConfiguration();
 
     /**
      * Used for testing, allows injection of a mock or in-memory JdbcTemplate.
@@ -46,7 +46,7 @@ public class PosixMapperDAO {
     public PosixMapperDAO() {
         final JndiDataSourceLookup jndiDataSourceLookup = new JndiDataSourceLookup();
         try {
-            final DataSource dataSource = jndiDataSourceLookup.getDataSource(JNDI_NAME);
+            final DataSource dataSource = jndiDataSourceLookup.getDataSource(String.format(JNDI_NAME, this.databaseConfiguration.getJNDIDatasourceName()));
             this.jdbcTemplate = new JdbcTemplate(dataSource);
         } catch (DataSourceLookupFailureException dataSourceLookupFailureException) {
             throw new RuntimeException("Failed to initialize PosixMapperDAO with JNDI name: " + JNDI_NAME,
@@ -63,7 +63,7 @@ public class PosixMapperDAO {
     public User getUser(final String issuer, final String subject) {
         Objects.requireNonNull(issuer, "issuer cannot be null");
         Objects.requireNonNull(subject, "subject cannot be null");
-        return this.jdbcTemplate.queryForObject("select issuer, subject, username, uid from Users where issuer = ? and subject = ?",
+        return this.jdbcTemplate.queryForObject(String.format("select issuer, subject, username, uid from %s.Users where issuer = ? and subject = ?", this.databaseConfiguration.getSchema()),
                 (rs, rowNum) -> {
                     final User user = new User(rs.getString("issuer"), rs.getString("subject"), rs.getString("username"));
                     user.setUID(rs.getInt("uid"));
@@ -108,25 +108,20 @@ public class PosixMapperDAO {
         return group;
     }
 
-    public void cacheUsers(final ConcurrentHashMap<String, User> userCache) {
-        Objects.requireNonNull(userCache, "userCache cannot be null");
-        userCache.clear();
-        this.jdbcTemplate.queryForStream("select issuer, subject, username, uid from Users", (rs, rowNum) -> {
+    public List<User> allUsers() {
+        return this.jdbcTemplate.query(String.format("select issuer, subject, username, uid from %s.Users", this.databaseConfiguration.getSchema()), (rs, rowNum) -> {
             final User user = new User(rs.getString("issuer"), rs.getString("subject"), rs.getString("username"));
             user.setUID(rs.getInt("uid"));
 
             return user;
-        }).forEach(user -> userCache.put(user.getUsername(), user));
+        });
     }
 
-    public void cacheGroups(final ConcurrentHashMap<URI, Group> groupCache) {
-        Objects.requireNonNull(groupCache, "groupCache cannot be null");
-        groupCache.clear();
-        this.jdbcTemplate.queryForStream("select gid, groupURI from Groups", (rs, rowNum) -> {
+    public List<Group> allGroups() {
+        return this.jdbcTemplate.query(String.format("select gid, groupURI from %s.Groups", this.databaseConfiguration.getSchema()), (rs, rowNum) -> {
             final Group group = new Group(new GroupURI(URI.create(rs.getString("groupURI"))));
             group.setGid(rs.getInt("gid"));
-
             return group;
-        }).forEach(group -> groupCache.put(group.getGroupURI().getURI(), group));
+        });
     }
 }
