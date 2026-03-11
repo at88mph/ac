@@ -1,4 +1,4 @@
-# cadcAccessControl-Admin
+# cadc-access-control-admin
 
 This module provides a command line tool for managing users. It uses the persistence layer code (rather than the web
 service) for the various functions.
