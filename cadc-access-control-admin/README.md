@@ -3,31 +3,31 @@
 This module provides a command line tool for managing users. It uses the persistence layer code (rather than the web
 service) for the various functions.
 
-## Usage
+## configuration
 
+See the [cadc-java](https://github.com/opencadc/docker-base/tree/master/cadc-java)
+image docs for general config requirements.
+
+Runtime configuration must be made available via the `/config` directory.
+
+TODO: document config files
+
+## building it
 ```
-Usage: userAdmin <command> [-v|--verbose|-d|--debug] [-h|--help]
-Where command is:
-
---list                       : List approved users
---list-pending               : List users waiting for approval
---view=<userid>              : Print the entire details of <user> (pending or not)
---approve=<userid> --dn=<dn> : Approve user with userid=<userid> and set the
-                             : distinguished name to <dn>
---reject=<userid>            : Delete this user request
---disable=<userid>           : Lock this user account
---enable=<userid>            : Unlock this user account
-
---send-email                                   : Send an email to selected users
-    --file=<email-properties-file>             : Config file with email details
-    --outfile=<list-of-successful-sends>       : Log file
-    --batch-size=<num-of-emails-in-bcc>        : Number of emails in the bcc list
-    --to=<group> | --to-all                    : --to send - to all members of a group
-                                               : --to-all - send to all users
-    [--resume=<last-successful-send-address>]  : Resume sending after this email address
-    [--dry-run]     
-        
--v|--verbose                 : Verbose mode print progress and error messages
--d|--debug                   : Debug mode print all the logging messages
--h|--help                    : Print this message and exit
+gradle clean build
+docker build -t cadc-access-control-admin -f Dockerfile .
 ```
+
+## checking it
+```
+docker run -it cadc-access-control-admin:latest /bin/bash
+```
+
+## running it to display command-line help
+```
+docker run --rm --user opencadc:opencadc -v /path/to/external/config:/config:ro \
+    cadc-access-control-admin:latest /cadc-access-control-admin/bin/cadc-access-control-admin --help
+```
+Important: in the above usage, the args **replace** the CMD from the Dockerfile so you have to include it here.
+This could be improved, but the ENTRYPOINT is provided by the base image and does some setup before executing
+the CMD.... TBD.
