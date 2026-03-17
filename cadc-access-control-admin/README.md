@@ -57,6 +57,11 @@ adminGroupsDN = ou=adminGroups,ou=ds,dc=canfar,dc=net
 All three pools need to be configured and have a pool size of at least 1 (even though
 `cadc-access-control-admin` does not use the _unboundReadOnly_ pool.
 
+### client certificate
+The `cadc-access-control-admin` requires a client certificate that must be specified on the
+command line. Since configuration files are generally mounted into `/config` one could include
+the certificate file there and use `--cert=/config/cadcproxy.pem`, for example.
+
 ### ac-admin-email.properties
 This file is used by the cadc-access-control-admin tool for sending
 email messages for account approval to newly approved users, and
