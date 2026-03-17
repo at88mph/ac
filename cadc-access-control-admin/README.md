@@ -10,6 +10,53 @@ image docs for general config requirements.
 
 Runtime configuration must be made available via the `/config` directory.
 
+### ac-ldap-config.properties
+This file configures connection to the back end LDAP server.
+```
+################## Read-only connection pool ##################
+# space separated list of hosts
+readOnly.servers = {ldap server}
+readOnly.port = 389
+readOnly.poolInitSize = 1
+readOnly.poolMaxSize = 1
+# <roundRobin || fewestConnections>
+readOnly.poolPolicy = roundRobin
+readOnly.maxWait = 30000
+readOnly.createIfNeeded = false
+
+################## Read-write connection pool #################
+# space separated list of hosts
+readWrite.servers = {ldap server}
+readWrite.poolInitSize = 1
+readWrite.poolMaxSize = 1
+# <roundRobin || fewestConnections>
+readWrite.poolPolicy = roundRobin
+readWrite.maxWait = 30000
+readWrite.createIfNeeded = false
+
+############## Unbound-Read-only connection pool ##############
+# space separated list of hosts
+unboundReadOnly.servers = {ldap server}
+unboundReadOnly.poolInitSize = 1
+unboundReadOnly.poolMaxSize = 1
+# <roundRobin || fewestConnections>
+unboundReadOnly.poolPolicy = roundRobin
+unboundReadOnly.maxWait = 30000
+unboundReadOnly.createIfNeeded = false
+
+########## server configuration -- applies to all servers #####
+dbrcHost = devLdap
+port = 636
+proxyUser = uid=webproxy,ou=SpecialUsers,dc=canfar,dc=net
+proxyPassword = {webproxy ldap password}
+usersDN = ou=Users,ou=ds,dc=canfar,dc=net
+userRequestsDN = ou=userRequests,ou=ds,dc=canfar,dc=net
+groupsDN = ou=Groups,ou=ds,dc=canfar,dc=net
+adminGroupsDN = ou=adminGroups,ou=ds,dc=canfar,dc=net
+```
+All three pools need to be configured and have a pool size of at least 1 (even though
+`cadc-access-control-admin` does not use the _unboundReadOnly_ pool.
+
 ### ac-admin-email.properties
 This file is used by the cadc-access-control-admin tool for sending
 email messages for account approval to newly approved users, and
@@ -57,19 +104,6 @@ mail.body=<p>Dear User</p> \
           <p>Thank you</p>
 
 mail.bcc=id@example.com
-```
-
-### send-email.properties
-This file... TODO.
-```
-mail.from=id@example.com
-mail.to=id@example.com
-mail.reply-to=id@example.com
-mail.subject=Email Subject
-mail.body=<p>Body of the email</p>
-mail.skip-domains=<domain> <domain> Space separated domains. Addresses
-                                    ending in these domains will not
-                                    be added to the BBC list.
 ```
 
 ## building it
