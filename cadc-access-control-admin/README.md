@@ -62,6 +62,9 @@ The `cadc-access-control-admin` requires a client certificate that must be speci
 command line. Since configuration files are generally mounted into `/config` one could include
 the certificate file there and use `--cert=/config/cadcproxy.pem`, for example.
 
+The `example-wrapper-script` choses a different approach and mounts a client certificate
+separately (from the `/config`) and appends the correct `--cert` command line argument.
+
 ### ac-admin-email.properties
 This file is used by the cadc-access-control-admin tool for sending
 email messages for account approval to newly approved users, and
